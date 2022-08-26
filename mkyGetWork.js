@@ -97,7 +97,7 @@ function postWork(j){
         pollForWork();
       }
       else {
-	console.log('Post Work Error',response.statusCode);
+	console.log('Post Work Error');
         pollForWork();
       }
     });
