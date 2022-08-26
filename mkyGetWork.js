@@ -141,53 +141,64 @@ async function doLogin(uid,password){
   });	
 }
 async function dredgeYT(J) {
-  const browser = await playwright.chromium.launch({
-    headless: true // set this to true
-  });
-  var presult = false;
-  const page = await browser.newPage({ userAgent: J.work.uAgent });
-  await page.setViewportSize({ width: parseInt(J.work.width), height: parseInt(J.work.height) }); // set screen shot dimention
-  var hres = await page.goto('https://youtube.com/watch?v='+J.work.url);
-  if (hres){
-    console.log("Status: ", hres.status());
-    if (hres.status() == 200){
-      presult = true;
+  console.log('try fetching :',J.work.url);
+  var j = null;
+  try {
+    const browser = await playwright.chromium.launch({
+      headless: true // set this to true
+    });
+    var presult = false;
+    const page = await browser.newPage({ userAgent: J.work.uAgent });
+    await page.setViewportSize({ width: parseInt(J.work.width), height: parseInt(J.work.height) }); // set screen shot dimention
+    var hres = await page.goto('https://youtube.com/watch?v='+J.work.url);
+    if (hres){
+      console.log("Status: ", hres.status());
+      if (hres.status() == 200){
+        presult = true;
+      }
     }
+
+    if (presult){
+      var html = await page.content();
+      console.log('html:'+typeof(html));
+      html = html.replace(/'/g,"\"");
+      html = html.replace(/\/>/g,">");
+      html = html.replace(/ >/g,">");
+      html = html.replace(/< /g,"<");
+      html = html.replace(/\n/g," ");
+      //html  = trim(preg_replace('/\s\s+/', ' ', html));
+
+      var response = hres.status();
+      if (html.indexOf('"simpleText":"This video has been removed by the uploader"') > 0){
+        response = 304;
+      }
+      j  = {
+        result   : presult,
+        response : response,
+        job      : J,
+        title    : sGetTag('"title":"','",',html),
+        chanID   : sGetTag('"channelId":"','"',html),
+        pDate    : sGetTag('"publishDate":"','"',html),
+        author   : sGetTag('"author":"','",',html),
+        channel  : sGetTag('"ownerChannelName":"','",',html),
+        desc     : sGetTag('"shortDescription":"','",',html)
+      };
+      postWork(j);
+    }
+    else {
+      postWork({result:false,response:hres.status(),job:J});
+    }
+    //await page.screenshot({ path: 'my_screenshot.png' })
+    await browser.close();
   }
-
-  if (presult){
-    var html = await page.content();
-    console.log('html:'+typeof(html));
-    html = html.replace(/'/g,"\"");
-    html = html.replace(/\/>/g,">");
-    html = html.replace(/ >/g,">");
-    html = html.replace(/< /g,"<");
-    html = html.replace(/\n/g," ");
-    //html  = trim(preg_replace('/\s\s+/', ' ', html));
-
-    var response = hres.status();
-    if (html.indexOf('"simpleText":"This video has been removed by the uploader"') > 0){
-      response = 304;
-    }
-    var j  = {
-      result   : presult,
-      response : response,
+  catch(er){
+    j = {
+      result   : false,
       job      : J,
-      title    : sGetTag('"title":"','",',html),
-      chanID   : sGetTag('"channelId":"','"',html),
-      pDate    : sGetTag('"publishDate":"','"',html),
-      author   : sGetTag('"author":"','",',html),
-      channel  : sGetTag('"ownerChannelName":"','",',html),
-      desc     : sGetTag('"shortDescription":"','",',html)
-    };
-
-    postWork(j);
-  }
-  else {
-    postWork({result:false,response:hres.status(),job:J});
-  }
-  //await page.screenshot({ path: 'my_screenshot.png' })
-  await browser.close()
+      response : 000
+    }
+  }      
+  postWork(j);    
 }
 async function fetchDoc(J) {
   console.log('try fetching :',J.work.url);
