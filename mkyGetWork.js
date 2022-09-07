@@ -244,135 +244,142 @@ async function fetchDoc(J) {
   postWork(j);
 }
 async function fetchWScrShot(J,res=null) {
-  var domain = null;
+  console.log('try fetching :',J.work.url);
+  var j = null;
   try {
+    var domain = null;
     domain =  new URL(J.work.url);
-  }
-  catch(er) {
-    console.log('INVALID URL',J.work.url);
-    return;
-  }
-  domain = domain.hostname;
-  const browser = await playwright.chromium.launch({
-    headless: true
-  });
-  const page = await browser.newPage(
-  { userAgent: J.uAgent,
-    storageState: {cookies:[{name:"CONSENT",value:"PENDING+999",domain:domain,path:"/"}]}
-  });
-  var hres = null;
-  var scrshot = null;
-  try {
-    await page.setDefaultTimeout(300000);
-    await page.setViewportSize({ width: 1280, height: 800 }); // set screen shot dimention
-    var hres = await getPage(page,J.work.url);
+
+    domain = domain.hostname;
+    const browser = await playwright.chromium.launch({
+      headless: true
+    });
+    const page = await browser.newPage(
+    { userAgent: J.uAgent,
+      storageState: {cookies:[{name:"CONSENT",value:"PENDING+999",domain:domain,path:"/"}]}
+    });
+    var hres = null;
+    var scrshot = null;
+    try {
+      await page.setDefaultTimeout(300000);
+      await page.setViewportSize({ width: 1280, height: 800 }); // set screen shot dimention
+      var hres = await getPage(page,J.work.url);
+    }
+    catch(er){
+      console.log('Failed To Fetch Document');
+    }
+    if (!hres){
+      j  = {
+        result   : false,
+        mFound   : false,
+        job      : J,
+        response : 999,
+        data     : null,
+        scrshot  : null,
+        title    : null,
+        desc     : null,
+        ogImg    : null,
+        furl     : null
+      };
+      await browser.close()
+      postWork(j);
+    }
+    else {
+      var takeshot = null;
+      var scrShot  = null;
+      try {
+        takeshot = await page.screenshot();
+        scrshot = takeshot.toString('base64');
+        console.log("scrshot: length: ",scrshot.toString('base64').length);
+      }
+      catch(er) {console.log('Screen Shot Failed');}
+
+      var presult = false;
+      var rstatus = '999';
+
+      console.log("Status: ", hres.status());
+      if (hres.status() == 200 ){
+        presult = true;
+      }
+      rstatus = hres.status();
+
+      console.log ('Page ResponseCode: ',rstatus);
+
+      //await page.waitForTimeout(5000);
+      var title = null;
+      var title = null;
+      try {title = await page.title();}
+      catch(er){
+        console.log('page.title failed');
+        title="Title Not Found...";
+      }
+      console.log('title',title);
+      const furl = await page.url();
+      console.log('Final URL:',furl);
+
+      const data = await page.evaluate(() => {
+        try {
+          const metas = document.querySelectorAll("meta");
+          const mname     = Array.from(metas).map((v) => v.name);
+          const mcontent  = Array.from(metas).map((v) => v.content);
+          const mTag = Array.from(metas).map((v) => v.outerHTML);
+          const images = document.querySelectorAll("img");
+          const urls = Array.from(images).map((v) => v.src);
+          const height  = Array.from(images).map((v) => v.height);
+          const widths  = Array.from(images).map((v) => v.width);
+          return {urls : urls,h:height,w:widths,mname:mname,mcontent:mcontent,mTag:mTag} ;
+        }
+        catch(er) {
+          return {urls : null,h:null,w:null,mname:null,mcontent:null,mTag:null} ;
+        }
+      });
+
+
+      var desc = null;
+
+      var fdata = null;
+      if (typeof data !== 'undefined'){
+        fdata = data;
+        desc = getMetaDesc(data);
+        console.log("Description: ",desc);
+
+        if (!title || title==''){
+          title = getOgTitle(data);
+        }
+        //var html = await page.content();
+      }
+      var metaFound = true;
+      if (!title || title == '' || !desc || desc == ''){
+        scrshot = "empty";
+        metaFound  = false;
+        console.log("No info: nulling screen shot",scrshot);
+      }
+
+      j  = {
+        result   : presult,
+        mFound   : metaFound,
+        job      : J,
+        response : rstatus,
+        data     : fdata,
+        scrshot  : scrshot,
+        title    : rawUrlEncode(title),
+        desc     : rawUrlEncode(desc),
+        ogImg    : rawUrlEncode(getMetaContent(fdata,'og:image')),
+        furl     : rawUrlEncode(furl)
+      };
+      console.log('og:image ->',j.ogImg);
+      await browser.close()
+      postWork(j);
+    }
   }
   catch(er){
-    console.log('Failed To Fetch Document');
-  } 
-  if (!hres){
-    var j  = {
+    j = {
       result   : false,
-      mFound   : false,
       job      : J,
-      response : 999,
-      data     : null,
-      scrshot  : null,
-      title    : null,
-      desc     : null,
-      ogImg    : null,
-      furl     : null
-    };
-    await browser.close()
-    postWork(j);
+      response : 000
+    }
   }
-  else {
-    var takeshot = null;
-    var scrShot  = null;
-    try {
-      takeshot = await page.screenshot();
-      scrshot = takeshot.toString('base64');
-      console.log("scrshot: length: ",scrshot.toString('base64').length);
-    }
-    catch(er) {console.log('Screen Shot Failed');}
-  
-    var presult = false;
-    var rstatus = '999';
-
-    console.log("Status: ", hres.status());
-    if (hres.status() == 200 ){
-      presult = true;
-    }
-    rstatus = hres.status();
-
-    console.log ('Page ResponseCode: ',rstatus);
-
-    //await page.waitForTimeout(5000);
-    var title = null;
-    var title = null;
-    try {title = await page.title();}
-    catch(er){
-      console.log('page.title failed');
-      title="Title Not Found...";
-    }
-    console.log('title',title);
-    const furl = await page.url();
-    console.log('Final URL:',furl);
-
-    const data = await page.evaluate(() => {
-      try {
-        const metas = document.querySelectorAll("meta");
-        const mname     = Array.from(metas).map((v) => v.name);
-        const mcontent  = Array.from(metas).map((v) => v.content);
-        const mTag = Array.from(metas).map((v) => v.outerHTML);
-        const images = document.querySelectorAll("img");
-        const urls = Array.from(images).map((v) => v.src);
-        const height  = Array.from(images).map((v) => v.height);
-        const widths  = Array.from(images).map((v) => v.width);
-        return {urls : urls,h:height,w:widths,mname:mname,mcontent:mcontent,mTag:mTag} ;
-      }
-      catch(er) {
-        return {urls : null,h:null,w:null,mname:null,mcontent:null,mTag:null} ;
-      }  
-    });
- 
-
-    var desc = null;
-
-    var fdata = null;
-    if (typeof data !== 'undefined'){
-      fdata = data;
-      desc = getMetaDesc(data);
-      console.log("Description: ",desc);
-    
-      if (!title || title==''){
-        title = getOgTitle(data);
-      }
-      //var html = await page.content();
-    }
-    var metaFound = true;
-    if (!title || title == '' || !desc || desc == ''){
-      scrshot = "empty";
-      metaFound  = false;
-      console.log("No info: nulling screen shot",scrshot);
-    }
-
-    var j  = {
-      result   : presult,
-      mFound   : metaFound,
-      job      : J,
-      response : rstatus,
-      data     : fdata,
-      scrshot  : scrshot,
-      title    : rawUrlEncode(title),
-      desc     : rawUrlEncode(desc),
-      ogImg    : rawUrlEncode(getMetaContent(fdata,'og:image')),
-      furl     : rawUrlEncode(furl)
-    };
-    console.log('og:image ->',j.ogImg);
-    await browser.close()
-    postWork(j);
-  }
+  postWork(j);
 }
 function getPage(page, url) {
   var res = null;
