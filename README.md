@@ -1,5 +1,6 @@
 # nanoBot
-A little bot program for bitmonky.com members to dowload and use on their pc/laptop to do small tasks that earn bitMonky tokens.
+A little bot program I wrote for bitmonky.com members to dowload and use on their pc/laptop to do small tasks that earn bitMonky tokens.  I have
+uplaoded the backend so anyone can modify it and make their own AI agent scraper.
 
 UPDATE  - Originaly it paid workers in a token called bitMonky.  But you can incentivise worker bots any way you like.
 Or just run a few bots of your own.  
